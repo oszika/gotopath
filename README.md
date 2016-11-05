@@ -1,0 +1,2 @@
+# gotopath
+Go to path
