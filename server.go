@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/signal"
 )
 
 func request(req string) string {
@@ -40,6 +41,16 @@ func handleConn(c *net.UnixConn) error {
 }
 
 func listen() {
+	run := true
+
+	// Signals
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+	signal.Notify(signals, os.Kill)
+
+	// Conns
+	conns := make(chan *net.UnixConn, 100)
+
 	// Listen
 	path := "/tmp/gotopath." + os.Getenv("USER")
 	l, err := net.ListenUnix("unix", &net.UnixAddr{path, "unix"})
@@ -50,16 +61,31 @@ func listen() {
 	defer l.Close()
 	defer os.Remove(path)
 
-	for {
-		c, err := l.AcceptUnix()
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
+	// Listen connections and send them to conns chan
+	go func() {
+		for run {
+			c, err := l.AcceptUnix()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
 
-		err = handleConn(c)
-		if err != nil {
-			fmt.Println(err)
+			conns <- c
+		}
+	}()
+
+	// Wait conn or signal
+	for run {
+		select {
+		case c := <-conns:
+			fmt.Println("Got new conn")
+			err := handleConn(c)
+			if err != nil {
+				fmt.Println(err)
+			}
+		case s := <-signals:
+			fmt.Println("Got signal:", s)
+			run = false
 		}
 	}
 }
