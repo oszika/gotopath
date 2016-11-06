@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -59,13 +60,14 @@ func handleConn(c *net.UnixConn) error {
 	}
 
 	// Treat
+	errPath := ""
 	resp, err := request(string(req))
 	if err != nil {
-		return err
+		errPath = err.Error()
 	}
 
 	// Send response
-	_, err = fmt.Fprintf(c, resp)
+	err = gob.NewEncoder(c).Encode(Response{resp, errPath})
 	if err != nil {
 		return err
 	}
