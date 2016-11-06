@@ -1,8 +1,9 @@
 package main
 
 import (
+	"encoding/gob"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 )
 
@@ -21,7 +22,8 @@ func clientReq(unixaddr string, path string) error {
 	}
 
 	// Get response
-	req, err := ioutil.ReadAll(c)
+	var resp Response
+	err = gob.NewDecoder(c).Decode(&resp)
 	if err != nil {
 		return err
 	}
@@ -29,7 +31,11 @@ func clientReq(unixaddr string, path string) error {
 		return err
 	}
 
-	fmt.Println("Response:", string(req))
+	if resp.Err != "" {
+		return errors.New(resp.Err)
+	}
+
+	fmt.Println(resp.Path)
 
 	return nil
 }

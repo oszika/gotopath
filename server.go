@@ -1,16 +1,50 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 )
 
-func request(req string) string {
+// TODO: Manage same shortcut for several paths
+// map[string][]string
+var paths map[string]string = make(map[string]string)
+
+func request(req string) (string, error) {
 	fmt.Println("Request:", req)
-	return req
+
+	// First, return value in paths map
+	if resp, ok := paths[req]; ok {
+		fmt.Println("Response:", resp)
+		return resp, nil
+	}
+
+	// Check path and add to paths maps
+	info, err := os.Stat(req)
+	if err != nil {
+		return "", err
+	}
+
+	// Path must be valid dir
+	if !info.IsDir() {
+		return "", os.ErrNotExist
+	}
+
+	// Add to paths map
+	resp, err := filepath.Abs(req)
+	if err != nil {
+		return "", err
+
+	}
+	paths[filepath.Base(req)] = resp
+	fmt.Println("Paths:", paths)
+	fmt.Println("Response:", resp)
+
+	return resp, nil
 }
 
 func handleConn(c *net.UnixConn) error {
@@ -26,10 +60,14 @@ func handleConn(c *net.UnixConn) error {
 	}
 
 	// Treat
-	resp := request(string(req))
+	errPath := ""
+	resp, err := request(string(req))
+	if err != nil {
+		errPath = err.Error()
+	}
 
 	// Send response
-	_, err = fmt.Fprintf(c, resp)
+	err = gob.NewEncoder(c).Encode(Response{resp, errPath})
 	if err != nil {
 		return err
 	}
