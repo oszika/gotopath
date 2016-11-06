@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"net"
 )
@@ -30,7 +31,11 @@ func clientReq(unixaddr string, path string) error {
 		return err
 	}
 
-	fmt.Println("Response:", resp)
+	if resp.Err != "" {
+		return errors.New(resp.Err)
+	}
+
+	fmt.Println(resp.Path)
 
 	return nil
 }
