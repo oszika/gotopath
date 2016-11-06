@@ -40,7 +40,7 @@ func handleConn(c *net.UnixConn) error {
 	return nil
 }
 
-func listen() {
+func listen(unixpath string) error {
 	run := true
 
 	// Signals
@@ -52,14 +52,13 @@ func listen() {
 	conns := make(chan *net.UnixConn, 100)
 
 	// Listen
-	path := "/tmp/gotopath." + os.Getenv("USER")
-	l, err := net.ListenUnix("unix", &net.UnixAddr{path, "unix"})
+	l, err := net.ListenUnix("unix", &net.UnixAddr{unixpath, "unix"})
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	defer l.Close()
-	defer os.Remove(path)
+	defer os.Remove(unixpath)
 
 	// Listen connections and send them to conns chan
 	go func() {
@@ -88,4 +87,6 @@ func listen() {
 			run = false
 		}
 	}
+
+	return nil
 }
