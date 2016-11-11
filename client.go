@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-func clientReq(unixaddr string, path string) error {
+func pathReq(unixaddr string, path string) error {
 	c, err := net.DialUnix("unix", nil, &net.UnixAddr{unixaddr, "unix"})
 	if err != nil {
 		return err
@@ -38,4 +38,8 @@ func clientReq(unixaddr string, path string) error {
 	fmt.Println(resp.Path)
 
 	return nil
+}
+
+func completionReq(unixaddr string, path string) error {
+	return errors.New("Not implemented")
 }
