@@ -9,15 +9,23 @@ import (
 	"path/filepath"
 )
 
-// TODO: Manage same shortcut for several paths
-// map[string][]string
-var paths map[string]string = make(map[string]string)
+type Server struct {
+	unixpath string
 
-func request(req string) (string, error) {
+	// TODO: Manage same shortcut for several paths
+	// map[string][]string
+	paths map[string]string
+}
+
+func NewServer(unixpath string) *Server {
+	return &Server{unixpath, make(map[string]string)}
+}
+
+func (s *Server) request(req string) (string, error) {
 	fmt.Println("Request:", req)
 
 	// First, return value in paths map
-	if resp, ok := paths[req]; ok {
+	if resp, ok := s.paths[req]; ok {
 		fmt.Println("Response:", resp)
 		return resp, nil
 	}
@@ -39,14 +47,14 @@ func request(req string) (string, error) {
 		return "", err
 
 	}
-	paths[filepath.Base(req)] = resp
-	fmt.Println("Paths:", paths)
+	s.paths[filepath.Base(req)] = resp
+	fmt.Println("Paths:", s.paths)
 	fmt.Println("Response:", resp)
 
 	return resp, nil
 }
 
-func handleConn(c *net.UnixConn) error {
+func (s *Server) handleConn(c *net.UnixConn) error {
 	defer c.Close()
 
 	// Get request
@@ -66,7 +74,7 @@ func handleConn(c *net.UnixConn) error {
 	if req.Type == Completion {
 		errPath = "Not implemented"
 	} else {
-		resp, err = request(string(req.Req))
+		resp, err = s.request(string(req.Req))
 		if err != nil {
 			errPath = err.Error()
 		}
@@ -84,7 +92,7 @@ func handleConn(c *net.UnixConn) error {
 	return nil
 }
 
-func listen(unixpath string) error {
+func (s *Server) listen() error {
 	run := true
 
 	// Signals
@@ -96,13 +104,13 @@ func listen(unixpath string) error {
 	conns := make(chan *net.UnixConn, 100)
 
 	// Listen
-	l, err := net.ListenUnix("unix", &net.UnixAddr{unixpath, "unix"})
+	l, err := net.ListenUnix("unix", &net.UnixAddr{s.unixpath, "unix"})
 	if err != nil {
 		return err
 	}
 
 	defer l.Close()
-	defer os.Remove(unixpath)
+	defer os.Remove(s.unixpath)
 
 	// Listen connections and send them to conns chan
 	go func() {
@@ -122,7 +130,7 @@ func listen(unixpath string) error {
 		select {
 		case c := <-conns:
 			fmt.Println("Got new conn")
-			err := handleConn(c)
+			err := s.handleConn(c)
 			if err != nil {
 				fmt.Println(err)
 			}
