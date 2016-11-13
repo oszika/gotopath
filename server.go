@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -51,7 +50,8 @@ func handleConn(c *net.UnixConn) error {
 	defer c.Close()
 
 	// Get request
-	req, err := ioutil.ReadAll(c)
+	var req Request
+	err := gob.NewDecoder(c).Decode(&req)
 	if err != nil {
 		return err
 	}
@@ -61,9 +61,15 @@ func handleConn(c *net.UnixConn) error {
 
 	// Treat
 	errPath := ""
-	resp, err := request(string(req))
-	if err != nil {
-		errPath = err.Error()
+	var resp string
+
+	if req.Type == Completion {
+		errPath = "Not implemented"
+	} else {
+		resp, err = request(string(req.Req))
+		if err != nil {
+			errPath = err.Error()
+		}
 	}
 
 	// Send response

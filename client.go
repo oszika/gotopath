@@ -2,44 +2,38 @@ package main
 
 import (
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"net"
 )
 
-func pathReq(unixaddr string, path string) error {
-	c, err := net.DialUnix("unix", nil, &net.UnixAddr{unixaddr, "unix"})
+type Client struct {
+	unixaddr string
+}
+
+func (client *Client) send(r *Request) (*Response, error) {
+	// Connect
+	c, err := net.DialUnix("unix", nil, &net.UnixAddr{client.unixaddr, "unix"})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Make request
-	if _, err = fmt.Fprintf(c, path); err != nil {
-		return err
+	// Send request
+	if err = gob.NewEncoder(c).Encode(r); err != nil {
+		return nil, err
 	}
 	if err = c.CloseWrite(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Get response
 	var resp Response
 	err = gob.NewDecoder(c).Decode(&resp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err = c.CloseRead(); err != nil {
-		return err
+		return nil, err
 	}
 
-	if resp.Err != "" {
-		return errors.New(resp.Err)
-	}
-
-	fmt.Println(resp.Path)
-
-	return nil
-}
-
-func completionReq(unixaddr string, path string) error {
-	return errors.New("Not implemented")
+	return &resp, nil
 }

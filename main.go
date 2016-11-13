@@ -1,13 +1,23 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 )
+
+func requestOrPwd(req string) string {
+	if req != "" {
+		return req
+	}
+	return os.Getenv("PWD")
+}
 
 func main() {
 	serve := flag.Bool("serve", false, "Serve mode")
 	completion := flag.Bool("complete", false, "Get suggestions for uncomplete request")
+	request := flag.String("request", "", "Where you want to go (path or shortcut)")
 	flag.Parse()
 
 	unixaddr := "/tmp/gotopath." + os.Getenv("USER")
@@ -16,27 +26,24 @@ func main() {
 		if err := listen(unixaddr); err != nil {
 			panic(err)
 		}
-	} else if *completion {
-		var req string
-
-		if len(os.Args) > 1 {
-			req = os.Args[1]
-		}
-
-		if err := completionReq(unixaddr, req); err != nil {
-			panic(err)
-		}
 	} else {
-		var path string
+		var req *Request
 
-		if len(os.Args) > 1 {
-			path = os.Args[1]
+		if *completion {
+			req = &Request{Completion, *request}
 		} else {
-			path = os.Getenv("PWD")
+			req = &Request{Path, requestOrPwd(*request)}
 		}
 
-		if err := pathReq(unixaddr, path); err != nil {
+		resp, err := (&Client{unixaddr}).send(req)
+		if err != nil {
 			panic(err)
 		}
+		if resp.Err != "" {
+			panic(errors.New(resp.Err))
+		}
+
+		// Display result
+		fmt.Println(resp.Path)
 	}
 }
