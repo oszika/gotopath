@@ -31,8 +31,15 @@ func NewServer(unixpath string, savefile string) (*Server, error) {
 
 	s := &Server{unixpath, make(map[string]string), file}
 
-	if err = s.Load(); err != nil {
+	stat, err := file.Stat()
+	if err != nil {
 		return nil, err
+	}
+
+	if stat.Size() > 0 {
+		if err = s.Load(); err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil

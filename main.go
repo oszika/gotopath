@@ -23,7 +23,7 @@ func main() {
 	unixaddr := "/tmp/gotopath." + os.Getenv("USER")
 
 	if *serve {
-		s, err := NewServer(unixaddr, "/tmp/gotopath.save")
+		s, err := NewServer(unixaddr, os.Getenv("HOME")+"/.config/gotopath/gotopath.gob")
 		if err != nil {
 			panic(err)
 		}
