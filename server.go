@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 )
 
 type Server struct {
@@ -121,6 +122,7 @@ func (s *Server) listen() error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 	signal.Notify(signals, os.Kill)
+	signal.Notify(signals, syscall.SIGTERM)
 
 	// Conns
 	conns := make(chan *net.UnixConn, 100)
@@ -147,6 +149,8 @@ func (s *Server) listen() error {
 		}
 	}()
 
+	fmt.Println("Starting server")
+
 	// Wait conn or signal
 	for run {
 		select {
@@ -161,6 +165,8 @@ func (s *Server) listen() error {
 			run = false
 		}
 	}
+
+	fmt.Println("Ending server")
 
 	return nil
 }
