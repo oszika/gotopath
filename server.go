@@ -3,22 +3,48 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
-// TODO: Manage same shortcut for several paths
-// map[string][]string
-var paths map[string]string = make(map[string]string)
+type Server struct {
+	unixpath string
 
-func request(req string) (string, error) {
+	// TODO: Manage same shortcut for several paths
+	// map[string][]string
+	paths map[string]string
+}
+
+func NewServer(unixpath string) *Server {
+	return &Server{unixpath, make(map[string]string)}
+}
+
+func (s *Server) complete(req string) (string, error) {
+	matched := []string{}
+
+	for key, _ := range s.paths {
+		ok, err := regexp.MatchString(req, key)
+		if err != nil {
+			return "", err
+		}
+
+		if ok {
+			matched = append(matched, key)
+		}
+	}
+
+	return strings.Join(matched, ","), nil
+}
+
+func (s *Server) request(req string) (string, error) {
 	fmt.Println("Request:", req)
 
 	// First, return value in paths map
-	if resp, ok := paths[req]; ok {
+	if resp, ok := s.paths[req]; ok {
 		fmt.Println("Response:", resp)
 		return resp, nil
 	}
@@ -40,18 +66,19 @@ func request(req string) (string, error) {
 		return "", err
 
 	}
-	paths[filepath.Base(req)] = resp
-	fmt.Println("Paths:", paths)
+	s.paths[filepath.Base(req)] = resp
+	fmt.Println("Paths:", s.paths)
 	fmt.Println("Response:", resp)
 
 	return resp, nil
 }
 
-func handleConn(c *net.UnixConn) error {
+func (s *Server) handleConn(c *net.UnixConn) error {
 	defer c.Close()
 
 	// Get request
-	req, err := ioutil.ReadAll(c)
+	var req Request
+	err := gob.NewDecoder(c).Decode(&req)
 	if err != nil {
 		return err
 	}
@@ -61,9 +88,18 @@ func handleConn(c *net.UnixConn) error {
 
 	// Treat
 	errPath := ""
-	resp, err := request(string(req))
-	if err != nil {
-		errPath = err.Error()
+	var resp string
+
+	if req.Type == Completion {
+		resp, err = s.complete(string(req.Req))
+		if err != nil {
+			errPath = err.Error()
+		}
+	} else {
+		resp, err = s.request(string(req.Req))
+		if err != nil {
+			errPath = err.Error()
+		}
 	}
 
 	// Send response
@@ -78,7 +114,7 @@ func handleConn(c *net.UnixConn) error {
 	return nil
 }
 
-func listen(unixpath string) error {
+func (s *Server) listen() error {
 	run := true
 
 	// Signals
@@ -90,13 +126,13 @@ func listen(unixpath string) error {
 	conns := make(chan *net.UnixConn, 100)
 
 	// Listen
-	l, err := net.ListenUnix("unix", &net.UnixAddr{unixpath, "unix"})
+	l, err := net.ListenUnix("unix", &net.UnixAddr{s.unixpath, "unix"})
 	if err != nil {
 		return err
 	}
 
 	defer l.Close()
-	defer os.Remove(unixpath)
+	defer os.Remove(s.unixpath)
 
 	// Listen connections and send them to conns chan
 	go func() {
@@ -116,7 +152,7 @@ func listen(unixpath string) error {
 		select {
 		case c := <-conns:
 			fmt.Println("Got new conn")
-			err := handleConn(c)
+			err := s.handleConn(c)
 			if err != nil {
 				fmt.Println(err)
 			}
