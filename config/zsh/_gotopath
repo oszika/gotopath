@@ -1,7 +1,7 @@
 #compdef gotopath
 cur=${words[2, -1]}
 
-command gotopath -complete "$cur" | while read i; do
+command gotopath -complete -request "$cur" | while read i; do
 	 compadd -X "Shortcuts:" "$i";
 done
 

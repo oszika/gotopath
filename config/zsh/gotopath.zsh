@@ -1,7 +1,7 @@
 # Gotopath client
 gotopath()
 {
-	gopath=`command gotopath $@`
+	gopath=`command gotopath -request $@`
 	ret=$?
 	if [ $ret -eq 0 ]; then
 		echo "Go to $gopath"
