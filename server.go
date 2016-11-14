@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 type Server struct {
@@ -19,6 +21,23 @@ type Server struct {
 
 func NewServer(unixpath string) *Server {
 	return &Server{unixpath, make(map[string]string)}
+}
+
+func (s *Server) complete(req string) (string, error) {
+	matched := []string{}
+
+	for key, _ := range s.paths {
+		ok, err := regexp.MatchString(req, key)
+		if err != nil {
+			return "", err
+		}
+
+		if ok {
+			matched = append(matched, key)
+		}
+	}
+
+	return strings.Join(matched, ","), nil
 }
 
 func (s *Server) request(req string) (string, error) {
@@ -72,7 +91,10 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 	var resp string
 
 	if req.Type == Completion {
-		errPath = "Not implemented"
+		resp, err = s.complete(string(req.Req))
+		if err != nil {
+			errPath = err.Error()
+		}
 	} else {
 		resp, err = s.request(string(req.Req))
 		if err != nil {
