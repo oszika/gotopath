@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Server struct {
@@ -18,10 +19,49 @@ type Server struct {
 	// TODO: Manage same shortcut for several paths
 	// map[string][]string
 	paths map[string]string
+
+	file *os.File
 }
 
-func NewServer(unixpath string) *Server {
-	return &Server{unixpath, make(map[string]string)}
+func NewServer(unixpath string, savefile string) (*Server, error) {
+	// Open gob file to load paths
+	file, err := os.OpenFile(savefile, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+
+	s := &Server{unixpath, make(map[string]string), file}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if stat.Size() > 0 {
+		if err = s.Load(); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
+}
+
+func (s Server) Load() error {
+	return gob.NewDecoder(s.file).Decode(&s.paths)
+}
+
+func (s Server) Save() error {
+	s.file.Seek(0, 0)
+	s.file.Truncate(0)
+
+	return gob.NewEncoder(s.file).Encode(s.paths)
+}
+
+func (s *Server) Close() {
+	if err := s.Save(); err != nil {
+		fmt.Println(err)
+	}
+	s.file.Close()
 }
 
 func (s *Server) complete(req string) (string, error) {
@@ -151,9 +191,16 @@ func (s *Server) listen() error {
 
 	fmt.Println("Starting server")
 
+	ticker := time.NewTicker(time.Hour)
+
 	// Wait conn or signal
 	for run {
 		select {
+		case <-ticker.C:
+			fmt.Println("Save data")
+			if err := s.Save(); err != nil {
+				fmt.Println(err)
+			}
 		case c := <-conns:
 			fmt.Println("Got new conn")
 			err := s.handleConn(c)
