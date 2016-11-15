@@ -4,8 +4,8 @@ package main
 type Type int
 
 const (
-	Path Type = iota
-	Completion
+	PathRequest Type = iota
+	CompletionRequest
 )
 
 type Request struct {

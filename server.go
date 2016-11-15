@@ -16,9 +16,7 @@ import (
 type Server struct {
 	unixpath string
 
-	// TODO: Manage same shortcut for several paths
-	// map[string][]string
-	paths map[string]string
+	paths map[string]*Shortcut
 
 	file *os.File
 }
@@ -30,7 +28,7 @@ func NewServer(unixpath string, savefile string) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{unixpath, make(map[string]string), file}
+	s := &Server{unixpath, make(map[string]*Shortcut), file}
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -87,7 +85,7 @@ func (s *Server) request(req string) (string, error) {
 	// First, return value in paths map
 	if resp, ok := s.paths[req]; ok {
 		fmt.Println("Response:", resp)
-		return resp, nil
+		return resp.Name, nil
 	}
 
 	// Check path and add to paths maps
@@ -107,7 +105,7 @@ func (s *Server) request(req string) (string, error) {
 		return "", err
 
 	}
-	s.paths[filepath.Base(req)] = resp
+	s.paths[filepath.Base(req)] = NewShortcut(req, resp)
 	fmt.Println("Paths:", s.paths)
 	fmt.Println("Response:", resp)
 
@@ -131,7 +129,7 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 	errPath := ""
 	var resp string
 
-	if req.Type == Completion {
+	if req.Type == CompletionRequest {
 		resp, err = s.complete(string(req.Req))
 		if err != nil {
 			errPath = err.Error()
