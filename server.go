@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Server struct {
@@ -190,9 +191,16 @@ func (s *Server) listen() error {
 
 	fmt.Println("Starting server")
 
+	ticker := time.NewTicker(time.Hour)
+
 	// Wait conn or signal
 	for run {
 		select {
+		case <-ticker.C:
+			fmt.Println("Save data")
+			if err := s.Save(); err != nil {
+				fmt.Println(err)
+			}
 		case c := <-conns:
 			fmt.Println("Got new conn")
 			err := s.handleConn(c)
