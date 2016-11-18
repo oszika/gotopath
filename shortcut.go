@@ -10,19 +10,25 @@ func NewPath(name string) *Path {
 }
 
 type Shortcut struct {
-	Name string
-
 	Path *Path
 	// TODO: manage several paths
 	// paths []*Path
 }
 
-func NewShortcut(name string, path string) *Shortcut {
-	return &Shortcut{name, NewPath(path)}
+func NewShortcut(path string) *Shortcut {
+	return &Shortcut{NewPath(path)}
 }
 
 type Shortcuts map[string]*Shortcut
 
 func NewShortcuts() Shortcuts {
 	return make(map[string]*Shortcut)
+}
+
+func (s Shortcuts) Get(req string) string {
+	if shortcut, ok := s[req]; ok {
+		return shortcut.Path.Name
+	}
+
+	return ""
 }

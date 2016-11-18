@@ -82,10 +82,10 @@ func (s *Server) complete(req string) (string, error) {
 func (s *Server) request(req string) (string, error) {
 	fmt.Println("Request:", req)
 
-	// First, return value in paths map
-	if resp, ok := s.paths[req]; ok {
-		fmt.Println("Response:", resp)
-		return resp.Name, nil
+	// First, return shortcut if exists
+	if shortcut := s.paths.Get(req); shortcut != "" {
+		fmt.Println("Shortcut:", shortcut)
+		return shortcut, nil
 	}
 
 	// Check path and add to paths maps
@@ -105,7 +105,7 @@ func (s *Server) request(req string) (string, error) {
 		return "", err
 
 	}
-	s.paths[filepath.Base(req)] = NewShortcut(req, resp)
+	s.paths[filepath.Base(req)] = NewShortcut(resp)
 	fmt.Println("Paths:", s.paths)
 	fmt.Println("Response:", resp)
 
