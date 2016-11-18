@@ -20,3 +20,9 @@ type Shortcut struct {
 func NewShortcut(name string, path string) *Shortcut {
 	return &Shortcut{name, NewPath(path)}
 }
+
+type Shortcuts map[string]*Shortcut
+
+func NewShortcuts() Shortcuts {
+	return make(map[string]*Shortcut)
+}

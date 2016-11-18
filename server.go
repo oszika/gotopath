@@ -16,7 +16,7 @@ import (
 type Server struct {
 	unixpath string
 
-	paths map[string]*Shortcut
+	paths Shortcuts
 
 	file *os.File
 }
@@ -28,7 +28,7 @@ func NewServer(unixpath string, savefile string) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{unixpath, make(map[string]*Shortcut), file}
+	s := &Server{unixpath, NewShortcuts(), file}
 
 	stat, err := file.Stat()
 	if err != nil {
