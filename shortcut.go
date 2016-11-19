@@ -72,11 +72,14 @@ func NewShortcuts() Shortcuts {
 }
 
 func (s Shortcuts) Remove(base string, path string) {
-	fmt.Println("Remove:", base, "->", path)
-	s[base].Remove(path)
-	if s[base].IsEmpty() {
-		fmt.Println("Delete:", base)
-		delete(s, base)
+	if shortcut, ok := s[base]; ok {
+		fmt.Println("Remove:", base, "->", path)
+		shortcut.Remove(path)
+		if shortcut.IsEmpty() {
+			fmt.Println("Delete:", base)
+			delete(s, base)
+		}
+
 	}
 }
 
@@ -97,23 +100,35 @@ func (s Shortcuts) RemoveAllInvalidPaths(req string) {
 
 }
 
-func (s Shortcuts) Get(req string) (string, error) {
+func (s Shortcuts) Get(req string) string {
 	if shortcut, ok := s[req]; ok {
-		// Check entry
-		if err := pathIsValid(shortcut.Main); err != nil {
-			s.Remove(req, shortcut.Main)
-			return "", err
+		// Execute for all paths in shortcut
+		for !shortcut.IsEmpty() {
+			if err := pathIsValid(shortcut.Main); err == nil {
+				// Update shortcut
+				s.Update(shortcut.Main)
+
+				fmt.Println("Shortcut updated:", shortcut)
+
+				return shortcut.Main
+			} else {
+				// Path not valid, remove it and check the next
+				// If there is only one paths, shortcut will be destroy
+				keyIsDeleted := (len(shortcut.Paths) == 1)
+
+				s.Remove(req, shortcut.Main)
+
+				if keyIsDeleted {
+					return ""
+				}
+			}
+
 		}
 
-		// Update shortcut
-		shortcut.Update(shortcut.Main)
-
-		fmt.Println("Shortcut updated:", shortcut)
-
-		return shortcut.Main, nil
+		return ""
 	}
 
-	return "", nil
+	return ""
 }
 
 func (s Shortcuts) Add(req string) (string, error) {
@@ -131,18 +146,21 @@ func (s Shortcuts) Add(req string) (string, error) {
 	}
 
 	// Add shortcut for each subfile
-	tmp := abs
-	for tmp != "/" {
-		d, b := path.Dir(tmp), path.Base(tmp)
-		if _, ok := s[b]; !ok {
-			s[b] = NewShortcut(tmp)
-			fmt.Println("New shortcut created:", b, "->", s[b])
-		} else {
-			s[b].Update(tmp)
-			fmt.Println("Shortcut updated:", b, "->", s[b])
-		}
-		tmp = d
-	}
+	s.Update(abs)
 
 	return abs, nil
+}
+
+func (s Shortcuts) Update(req string) {
+	for req != "/" {
+		d, b := path.Dir(req), path.Base(req)
+		if _, ok := s[b]; !ok {
+			s[b] = NewShortcut(req)
+			fmt.Println("New shortcut created:", b, "->", s[b])
+		} else {
+			s[b].Update(req)
+			fmt.Println("Shortcut updated:", b, "->", s[b])
+		}
+		req = d
+	}
 }

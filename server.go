@@ -78,10 +78,7 @@ func (s *Server) complete(req string) (string, error) {
 
 func (s *Server) request(req string) (string, error) {
 	// First, return shortcut if exists
-	shortcut, err := s.paths.Get(req)
-	if err != nil {
-		return "", err
-	} else if shortcut != "" {
+	if shortcut := s.paths.Get(req); shortcut != "" {
 		return shortcut, nil
 	}
 
