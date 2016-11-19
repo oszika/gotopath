@@ -36,6 +36,7 @@ func NewShortcuts() Shortcuts {
 func (s Shortcuts) Get(req string) string {
 	if shortcut, ok := s[req]; ok {
 		fmt.Println("Shortcut found:", shortcut)
+		shortcut.Update(shortcut.Main)
 		return shortcut.Main
 	}
 
