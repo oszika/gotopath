@@ -14,10 +14,8 @@ import (
 
 type Server struct {
 	unixpath string
-
-	paths Shortcuts
-
-	file *os.File
+	paths    Shortcuts
+	file     *os.File
 }
 
 func NewServer(unixpath string, savefile string) (*Server, error) {
@@ -79,11 +77,8 @@ func (s *Server) complete(req string) (string, error) {
 }
 
 func (s *Server) request(req string) (string, error) {
-	fmt.Println("Request:", req)
-
 	// First, return shortcut if exists
 	if shortcut := s.paths.Get(req); shortcut != "" {
-		fmt.Println("Shortcut:", shortcut)
 		return shortcut, nil
 	}
 
@@ -108,6 +103,8 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 	// Treat
 	errPath := ""
 	var resp string
+
+	fmt.Println("Request:", req)
 
 	if req.Type == CompletionRequest {
 		resp, err = s.complete(string(req.Req))
