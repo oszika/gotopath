@@ -73,7 +73,7 @@ func (s *Server) complete(req string) (string, error) {
 		}
 	}
 
-	return strings.Join(matched, ","), nil
+	return strings.Join(matched, "\n"), nil
 }
 
 func (s *Server) request(req string) (string, error) {
