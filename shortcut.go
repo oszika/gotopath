@@ -7,23 +7,24 @@ import (
 	"path/filepath"
 )
 
-type Path struct {
-	Name  string
-	Count int
-}
-
-func NewPath(name string) *Path {
-	return &Path{name, 1}
-}
-
 type Shortcut struct {
-	Path *Path
-	// TODO: manage several paths
-	// paths []*Path
+	Main  string         // Main path
+	Paths map[string]int // All paths managed by shortcut
 }
 
 func NewShortcut(path string) *Shortcut {
-	return &Shortcut{NewPath(path)}
+	return &Shortcut{path, map[string]int{path: 1}}
+}
+
+func (s *Shortcut) Update(path string) {
+	if _, ok := s.Paths[path]; ok {
+		s.Paths[path]++
+		if s.Paths[path] > s.Paths[s.Main] {
+			s.Main = path
+		}
+	} else {
+		s.Paths[path] = 1
+	}
 }
 
 type Shortcuts map[string]*Shortcut
@@ -35,7 +36,7 @@ func NewShortcuts() Shortcuts {
 func (s Shortcuts) Get(req string) string {
 	if shortcut, ok := s[req]; ok {
 		fmt.Println("Shortcut found:", shortcut)
-		return shortcut.Path.Name
+		return shortcut.Main
 	}
 
 	return ""
@@ -65,17 +66,13 @@ func (s Shortcuts) Add(req string) (string, error) {
 		d, b := path.Dir(resp), path.Base(resp)
 		if _, ok := s[b]; !ok {
 			s[b] = NewShortcut(resp)
-			fmt.Println("New shortcut created:", b, "->", resp)
+			fmt.Println("New shortcut created:", b, "->", s[b])
 		} else {
-			fmt.Println("Shortcut updated:", b, "->", resp)
+			s[b].Update(resp)
+			fmt.Println("Shortcut updated:", b, "->", s[b])
 		}
 		resp = d
 	}
 
-	s[filepath.Base(req)] = NewShortcut(resp)
-	fmt.Println("Paths:", s)
-	fmt.Println("Response:", resp)
-
 	return resp, nil
-
 }
