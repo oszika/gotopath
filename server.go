@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -88,28 +87,9 @@ func (s *Server) request(req string) (string, error) {
 		return shortcut, nil
 	}
 
-	// Check path and add to paths maps
-	info, err := os.Stat(req)
-	if err != nil {
-		return "", err
-	}
-
-	// Path must be valid dir
-	if !info.IsDir() {
-		return "", os.ErrNotExist
-	}
-
-	// Add to paths map
-	resp, err := filepath.Abs(req)
-	if err != nil {
-		return "", err
-
-	}
-	s.paths[filepath.Base(req)] = NewShortcut(resp)
-	fmt.Println("Paths:", s.paths)
-	fmt.Println("Response:", resp)
-
-	return resp, nil
+	// Here, shortcut not exists. Add it to shortcuts.
+	// Add func returns absolute req path
+	return s.paths.Add(req)
 }
 
 func (s *Server) handleConn(c *net.UnixConn) error {
