@@ -62,7 +62,7 @@ func (s *Server) Close() {
 func (s *Server) complete(req string) (string, error) {
 	matched := []string{}
 
-	for key, _ := range s.paths {
+	for key, shortcut := range s.paths {
 		ok, err := regexp.MatchString(req, key)
 		if err != nil {
 			return "", err
@@ -71,13 +71,32 @@ func (s *Server) complete(req string) (string, error) {
 		if ok {
 			matched = append(matched, key)
 		}
+
+		for path, _ := range shortcut.Paths {
+			ok, err := regexp.MatchString(req, path)
+			if err != nil {
+				return "", err
+			}
+
+			if ok {
+				matched = append(matched, key+":="+path)
+			}
+
+		}
 	}
 
 	return strings.Join(matched, "\n"), nil
 }
 
 func (s *Server) request(req string) (string, error) {
-	// First, return shortcut if exists
+	// For zsh completion, request can have format: "<shortcut>:=<path>"
+	// Get real request
+	chunks := strings.Split(req, ":=")
+	if len(chunks) == 2 {
+		req = chunks[1]
+	}
+
+	// Return shortcut if exists
 	if shortcut := s.paths.Get(req); shortcut != "" {
 		return shortcut, nil
 	}
