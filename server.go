@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -15,12 +14,8 @@ import (
 
 type Server struct {
 	unixpath string
-
-	// TODO: Manage same shortcut for several paths
-	// map[string][]string
-	paths map[string]string
-
-	file *os.File
+	paths    Shortcuts
+	file     *os.File
 }
 
 func NewServer(unixpath string, savefile string) (*Server, error) {
@@ -30,7 +25,7 @@ func NewServer(unixpath string, savefile string) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{unixpath, make(map[string]string), file}
+	s := &Server{unixpath, NewShortcuts(), file}
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -67,7 +62,7 @@ func (s *Server) Close() {
 func (s *Server) complete(req string) (string, error) {
 	matched := []string{}
 
-	for key, _ := range s.paths {
+	for key, shortcut := range s.paths {
 		ok, err := regexp.MatchString(req, key)
 		if err != nil {
 			return "", err
@@ -76,42 +71,39 @@ func (s *Server) complete(req string) (string, error) {
 		if ok {
 			matched = append(matched, key)
 		}
+
+		for path, _ := range shortcut.Paths {
+			ok, err := regexp.MatchString(req, path)
+			if err != nil {
+				return "", err
+			}
+
+			if ok {
+				matched = append(matched, key+":="+path)
+			}
+
+		}
 	}
 
-	return strings.Join(matched, ","), nil
+	return strings.Join(matched, "\n"), nil
 }
 
 func (s *Server) request(req string) (string, error) {
-	fmt.Println("Request:", req)
-
-	// First, return value in paths map
-	if resp, ok := s.paths[req]; ok {
-		fmt.Println("Response:", resp)
-		return resp, nil
+	// For zsh completion, request can have format: "<shortcut>:=<path>"
+	// Get real request
+	chunks := strings.Split(req, ":=")
+	if len(chunks) == 2 {
+		req = chunks[1]
 	}
 
-	// Check path and add to paths maps
-	info, err := os.Stat(req)
-	if err != nil {
-		return "", err
+	// Return shortcut if exists
+	if shortcut := s.paths.Get(req); shortcut != "" {
+		return shortcut, nil
 	}
 
-	// Path must be valid dir
-	if !info.IsDir() {
-		return "", os.ErrNotExist
-	}
-
-	// Add to paths map
-	resp, err := filepath.Abs(req)
-	if err != nil {
-		return "", err
-
-	}
-	s.paths[filepath.Base(req)] = resp
-	fmt.Println("Paths:", s.paths)
-	fmt.Println("Response:", resp)
-
-	return resp, nil
+	// Here, shortcut not exists. Add it to shortcuts.
+	// Add func returns absolute req path
+	return s.paths.Add(req)
 }
 
 func (s *Server) handleConn(c *net.UnixConn) error {
@@ -131,7 +123,9 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 	errPath := ""
 	var resp string
 
-	if req.Type == Completion {
+	fmt.Println("Request:", req)
+
+	if req.Type == CompletionRequest {
 		resp, err = s.complete(string(req.Req))
 		if err != nil {
 			errPath = err.Error()

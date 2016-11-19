@@ -35,9 +35,9 @@ func main() {
 		var req *Request
 
 		if *completion {
-			req = &Request{Completion, *request}
+			req = &Request{CompletionRequest, *request}
 		} else {
-			req = &Request{Path, requestOrPwd(*request)}
+			req = &Request{PathRequest, requestOrPwd(*request)}
 		}
 
 		resp, err := (&Client{unixaddr}).send(req)
