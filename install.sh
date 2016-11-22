@@ -14,4 +14,4 @@ echo "Install zsh functions"
 cp config/zsh/_gotopath ~/.config/gotopath/_gotopath
 cp config/zsh/gotopath.zsh ~/.config/gotopath/gotopath.zsh
 echo -e "\tTo enable: source ~/.config/gotopath/gotopath.zsh"
-echo -e "\tAutocompletion: fpath=(~/.config/gotopath/ $fpath)"
+echo -e "\tAutocompletion: fpath=(~/.config/gotopath/ \$fpath)"
