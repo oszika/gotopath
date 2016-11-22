@@ -3,6 +3,8 @@
 mkdir -p ~/.config/gotopath
 mkdir -p ~/.config/systemd/user
 
+cd `dirname $0`
+
 echo "Install gotopath"
 go install
 
