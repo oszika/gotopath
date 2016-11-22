@@ -1,0 +1,8 @@
+[Unit]
+Description=Go to path
+
+[Service]
+ExecStart=#GOTOPATH# -serve
+
+[Install]
+WantedBy=default.target
