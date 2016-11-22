@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 )
 
 // pathIsValid checks is path is a valid directory.
-func pathIsValid(path string) error {
-	info, err := os.Stat(path)
+func pathIsValid(req string) error {
+	if !path.IsAbs(req) {
+		return os.ErrInvalid
+	}
+	info, err := os.Stat(req)
 	if err != nil {
 		return err
 	}
@@ -46,6 +48,8 @@ func (s *Shortcut) Update(path string) {
 // Removes a path from Shortcut. If this path is the Main, main is reaffected
 // to the new most used path, or "" if not exists.
 func (s *Shortcut) Remove(path string) {
+	delete(s.Paths, path)
+
 	if path == s.Main {
 		c := 0
 		s.Main = ""
@@ -56,8 +60,6 @@ func (s *Shortcut) Remove(path string) {
 			}
 		}
 	}
-
-	delete(s.Paths, path)
 }
 
 // Returns if shortcut contains paths
@@ -71,36 +73,34 @@ func NewShortcuts() Shortcuts {
 	return make(map[string]*Shortcut)
 }
 
-func (s Shortcuts) Remove(base string, path string) {
+func (s Shortcuts) Remove(base string, path string) bool {
+	// Here, path is absolute
 	if shortcut, ok := s[base]; ok {
 		fmt.Println("Remove:", base, "->", path)
 		shortcut.Remove(path)
 		if shortcut.IsEmpty() {
 			fmt.Println("Delete:", base)
 			delete(s, base)
+			return true
 		}
-
 	}
+	return false
 }
 
 func (s Shortcuts) RemoveAllInvalidPaths(req string) {
-	abs, err := filepath.Abs(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for abs != "/" {
-		d, b := path.Dir(abs), path.Base(abs)
-		if err = pathIsValid(abs); err != nil {
-			s.Remove(b, abs)
+	// req is absolute
+	for req != "/" {
+		d, b := path.Dir(req), path.Base(req)
+		if err := pathIsValid(req); err != nil {
+			s.Remove(b, req)
 		}
-		abs = d
+		req = d
 	}
 
 }
 
 func (s Shortcuts) Get(req string) string {
+	fmt.Println("Get")
 	if shortcut, ok := s[req]; ok {
 		// Execute for all paths in shortcut
 		for !shortcut.IsEmpty() {
@@ -114,11 +114,7 @@ func (s Shortcuts) Get(req string) string {
 			} else {
 				// Path not valid, remove it and check the next
 				// If there is only one paths, shortcut will be destroy
-				keyIsDeleted := (len(shortcut.Paths) == 1)
-
-				s.Remove(req, shortcut.Main)
-
-				if keyIsDeleted {
+				if del := s.Remove(req, shortcut.Main); del {
 					return ""
 				}
 			}
@@ -138,17 +134,10 @@ func (s Shortcuts) Add(req string) (string, error) {
 		return "", err
 	}
 
-	// Add to paths map
-	abs, err := filepath.Abs(req)
-	if err != nil {
-		return "", err
-
-	}
-
 	// Add shortcut for each subfile
-	s.Update(abs)
+	s.Update(req)
 
-	return abs, nil
+	return req, nil
 }
 
 func (s Shortcuts) Update(req string) {

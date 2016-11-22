@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -88,22 +90,37 @@ func (s *Server) complete(req string) (string, error) {
 	return strings.Join(matched, "\n"), nil
 }
 
-func (s *Server) request(req string) (string, error) {
+func (s *Server) request(to string, from string) (string, error) {
 	// For zsh completion, request can have format: "<shortcut>:=<path>"
 	// Get real request
-	chunks := strings.Split(req, ":=")
+	chunks := strings.Split(to, ":=")
 	if len(chunks) == 2 {
-		req = chunks[1]
+		to = chunks[1]
 	}
 
 	// Return shortcut if exists
-	if shortcut := s.paths.Get(req); shortcut != "" {
+	if shortcut := s.paths.Get(to); shortcut != "" {
 		return shortcut, nil
+	}
+
+	// Build complete path if it's not absolute
+	if !path.IsAbs(to) {
+		if !path.IsAbs(from) {
+			return "", os.ErrInvalid
+		}
+
+		to = from + "/" + to
+	}
+
+	// Clean path
+	to, err := filepath.Abs(to)
+	if err != nil {
+		return "", err
 	}
 
 	// Here, shortcut not exists. Add it to shortcuts.
 	// Add func returns absolute req path
-	return s.paths.Add(req)
+	return s.paths.Add(to)
 }
 
 func (s *Server) handleConn(c *net.UnixConn) error {
@@ -126,12 +143,12 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 	fmt.Println("Request:", req)
 
 	if req.Type == CompletionRequest {
-		resp, err = s.complete(string(req.Req))
+		resp, err = s.complete(string(req.To))
 		if err != nil {
 			errPath = err.Error()
 		}
 	} else {
-		resp, err = s.request(string(req.Req))
+		resp, err = s.request(req.To, req.From)
 		if err != nil {
 			errPath = err.Error()
 		}

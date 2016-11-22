@@ -7,13 +7,6 @@ import (
 	"os"
 )
 
-func requestOrPwd(req string) string {
-	if req != "" {
-		return req
-	}
-	return os.Getenv("PWD")
-}
-
 func main() {
 	serve := flag.Bool("serve", false, "Serve mode")
 	completion := flag.Bool("complete", false, "Get suggestions for uncomplete request")
@@ -35,9 +28,9 @@ func main() {
 		var req *Request
 
 		if *completion {
-			req = &Request{CompletionRequest, *request}
+			req = &Request{CompletionRequest, *request, ""}
 		} else {
-			req = &Request{PathRequest, requestOrPwd(*request)}
+			req = &Request{PathRequest, *request, os.Getenv("PWD")}
 		}
 
 		resp, err := (&Client{unixaddr}).send(req)

@@ -10,5 +10,6 @@ const (
 
 type Request struct {
 	Type Type
-	Req  string
+	To   string
+	From string
 }
