@@ -6,10 +6,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -61,68 +57,6 @@ func (s *Server) Close() {
 	s.file.Close()
 }
 
-func (s *Server) complete(req string) (string, error) {
-	matched := []string{}
-
-	for key, shortcut := range s.paths {
-		ok, err := regexp.MatchString(req, key)
-		if err != nil {
-			return "", err
-		}
-
-		if ok {
-			matched = append(matched, key)
-		}
-
-		for path, _ := range shortcut.Paths {
-			ok, err := regexp.MatchString(req, path)
-			if err != nil {
-				return "", err
-			}
-
-			if ok {
-				matched = append(matched, key+":="+path)
-			}
-
-		}
-	}
-
-	return strings.Join(matched, "\n"), nil
-}
-
-func (s *Server) request(to string, from string) (string, error) {
-	// For zsh completion, request can have format: "<shortcut>:=<path>"
-	// Get real request
-	chunks := strings.Split(to, ":=")
-	if len(chunks) == 2 {
-		to = chunks[1]
-	}
-
-	// Return shortcut if exists
-	if shortcut := s.paths.Get(to); shortcut != "" {
-		return shortcut, nil
-	}
-
-	// Build complete path if it's not absolute
-	if !path.IsAbs(to) {
-		if !path.IsAbs(from) {
-			return "", os.ErrInvalid
-		}
-
-		to = from + "/" + to
-	}
-
-	// Clean path
-	to, err := filepath.Abs(to)
-	if err != nil {
-		return "", err
-	}
-
-	// Here, shortcut not exists. Add it to shortcuts.
-	// Add func returns absolute req path
-	return s.paths.Add(to)
-}
-
 func (s *Server) handleConn(c *net.UnixConn) error {
 	defer c.Close()
 
@@ -142,16 +76,9 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 
 	fmt.Println("Request:", req)
 
-	if req.Type == CompletionRequest {
-		resp, err = s.complete(string(req.To))
-		if err != nil {
-			errPath = err.Error()
-		}
-	} else {
-		resp, err = s.request(req.To, req.From)
-		if err != nil {
-			errPath = err.Error()
-		}
+	resp, err = req.cb(s.paths)
+	if err != nil {
+		errPath = err.Error()
 	}
 
 	// Send response

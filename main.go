@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +16,9 @@ func main() {
 
 	unixaddr := "/tmp/gotopath." + os.Getenv("USER")
 
+	gob.Register(RequestCompletion{})
+	gob.Register(RequestPath{})
+
 	if *serve {
 		s, err := NewServer(unixaddr, os.Getenv("HOME")+"/.config/gotopath/gotopath.gob")
 		if err != nil {
@@ -25,12 +29,12 @@ func main() {
 			panic(err)
 		}
 	} else {
-		var req *Request
+		var req Request
 
 		if *completion {
-			req = &Request{CompletionRequest, *request, ""}
+			req = &RequestCompletion{*request}
 		} else {
-			req = &Request{PathRequest, *request, os.Getenv("PWD")}
+			req = &RequestPath{*request, os.Getenv("PWD")}
 		}
 
 		resp, err := (&Client{unixaddr}).send(req)

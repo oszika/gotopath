@@ -9,7 +9,7 @@ type Client struct {
 	unixaddr string
 }
 
-func (client *Client) send(r *Request) (*Response, error) {
+func (client *Client) send(r Request) (*Response, error) {
 	// Connect
 	c, err := net.DialUnix("unix", nil, &net.UnixAddr{client.unixaddr, "unix"})
 	if err != nil {
@@ -17,7 +17,7 @@ func (client *Client) send(r *Request) (*Response, error) {
 	}
 
 	// Send request
-	if err = gob.NewEncoder(c).Encode(r); err != nil {
+	if err = gob.NewEncoder(c).Encode(&r); err != nil {
 		return nil, err
 	}
 	if err = c.CloseWrite(); err != nil {
