@@ -60,13 +60,11 @@ func (s *Server) Close() {
 func (s *Server) handleConn(c *net.UnixConn) error {
 	defer c.Close()
 
+	conn := NewConn(c)
+
 	// Get request
 	var req Request
-	err := gob.NewDecoder(c).Decode(&req)
-	if err != nil {
-		return err
-	}
-	if err = c.CloseRead(); err != nil {
+	if err := conn.Decode(&req); err != nil {
 		return err
 	}
 
@@ -76,17 +74,13 @@ func (s *Server) handleConn(c *net.UnixConn) error {
 
 	fmt.Println("Request:", req)
 
-	resp, err = req.cb(s.paths)
+	resp, err := req.cb(s.paths)
 	if err != nil {
 		errPath = err.Error()
 	}
 
 	// Send response
-	err = gob.NewEncoder(c).Encode(Response{resp, errPath})
-	if err != nil {
-		return err
-	}
-	if err = c.CloseWrite(); err != nil {
+	if err := conn.Encode(Response{resp, errPath}); err != nil {
 		return err
 	}
 

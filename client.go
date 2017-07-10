@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/gob"
 	"net"
 )
 
@@ -16,21 +15,16 @@ func (client *Client) send(r Request) (*Response, error) {
 		return nil, err
 	}
 
+	conn := NewConn(c)
+
 	// Send request
-	if err = gob.NewEncoder(c).Encode(&r); err != nil {
-		return nil, err
-	}
-	if err = c.CloseWrite(); err != nil {
+	if err = conn.Encode(&r); err != nil {
 		return nil, err
 	}
 
 	// Get response
 	var resp Response
-	err = gob.NewDecoder(c).Decode(&resp)
-	if err != nil {
-		return nil, err
-	}
-	if err = c.CloseRead(); err != nil {
+	if err = conn.Decode(&resp); err != nil {
 		return nil, err
 	}
 
